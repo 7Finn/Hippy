@@ -6,6 +6,7 @@
 
 import { camelize } from 'shared/util';
 import { tryConvertNumber, warn } from '@vue/util/index';
+import { isUrlRequestable } from './utils';
 import translateColor from './color-parser';
 
 const PROPERTIES_MAP = {
@@ -100,6 +101,8 @@ function convertPxUnitToPt(value) {
  */
 function parseCSS(css, options) {
   options = options || {};
+
+  const urlToNameMap = new Map();
 
   /**
    * Positional.
@@ -413,6 +416,19 @@ function parseCSS(css, options) {
       const executed = regexp.exec(value);
       if (executed && executed.length > 1) {
         [, processedValue] = executed;
+        if (isUrlRequestable(processedValue)) {
+          let importName = urlToNameMap.get(processedValue);
+          if (!importName) {
+            importName = `___CSS_LOADER_URL_IMPORT_${urlToNameMap.size}___`;
+            urlToNameMap.set(processedValue, importName);
+            options.imports.push({
+              importName,
+              url: options.urlHandler(processedValue),
+              index: lineno,
+            });
+            processedValue = importName;
+          }
+        }
       }
     }
     return [processedProperty, processedValue];
